@@ -4,42 +4,35 @@
 #define LED_PIN 12
 #define NUM_LEDS 512 // Two 16x16 displays = 256 LEDs each
 
-// Create an instance of the NeoPixel library
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
-uint32_t wheel(byte wheelPos);
-void rainbowCycle(int wait);
+
 void setup() {
+  Serial.begin(115200); // Match with the Python script baud rate
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
+  Serial.println("Ready to receive image data...");
 }
 
 void loop() {
-  rainbowCycle(20); // Run a rainbow animation
-}
+  static int currentLED = 0;
 
-// Fill the LEDs with a rainbow pattern
-void rainbowCycle(int wait) {
-  uint16_t i, j;
+  // Continuously read incoming data
+  while (Serial.available() >= 3) { // Process RGB data as it arrives
+    uint8_t r = Serial.read();
+    uint8_t g = Serial.read();
+    uint8_t b = Serial.read();
 
-  for (j = 0; j < 256; j++) { // Each iteration is one color frame
-    for (i = 0; i < strip.numPixels(); i++) {
-      strip.setPixelColor(i, wheel((i * 256 / strip.numPixels() + j) & 255));
+    // Set the color of the current LED
+    strip.setPixelColor(currentLED, strip.Color(r, g, b));
+
+    currentLED++;
+
+    // If all LEDs have been updated, show the frame and reset
+    if (currentLED >= NUM_LEDS) {
+      strip.show();
+      currentLED = 0; // Reset to the first LED
+      Serial.println("Frame displayed.");
     }
-    strip.show();
-    delay(wait);
   }
-}
+}  
 
-// Generate colors across a rainbow (helper function)
-uint32_t wheel(byte wheelPos) {
-  wheelPos = 255 - wheelPos;
-  if (wheelPos < 85) {
-    return strip.Color(255 - wheelPos * 3, 0, wheelPos * 3);
-  } else if (wheelPos < 170) {
-    wheelPos -= 85;
-    return strip.Color(0, wheelPos * 3, 255 - wheelPos * 3);
-  } else {
-    wheelPos -= 170;
-    return strip.Color(wheelPos * 3, 255 - wheelPos * 3, 0);
-  }
-}
